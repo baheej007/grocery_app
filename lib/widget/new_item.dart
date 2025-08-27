@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:shopping_list/data/categories.dart';
 import 'package:shopping_list/models/category.dart';
-import 'package:shopping_list/models/grocery_item.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 
 class NewItem extends StatefulWidget {
   const NewItem({super.key});
@@ -16,23 +17,57 @@ class _NewItemState extends State<NewItem> {
   var _enteredQuantity = 1;
   var _selectedCategory = categories[Categories.fruit]!;
 
-  void _saveItem() {
-    if (_formKey.currentState!.validate()) {
-      _formKey.currentState!.save();
+  void _saveItem() async { // Make the function async
+  if (_formKey.currentState!.validate()) {
+    _formKey.currentState!.save();
+
+    final url = Uri.https(
+        'backend1-ef89c-default-rtdb.firebaseio.com', 'shopping_list.json');
+
+    try {
+      final response = await http.post( // Await the response
+          url,
+          headers: {'Content-Type': 'application/json'},
+          body: json.encode({
+            'name': _enteredName,
+            'quantity': _enteredQuantity,
+            'category': _selectedCategory.title
+          }));
+         if(!mounted){return;}
+         Navigator.of(context).pop();
+
+      if (response.statusCode >= 400) {
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text("Failed to save item."),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 4),
+          ),
+        );
+      } else {
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("Product Saved Successfully!"),
+            backgroundColor: Colors.green,
+            duration: Duration(seconds: 2),
+          ),
+        );
+        
+      }
+    } catch (error) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text("Product Saved"),
-          duration: Duration(seconds: 2),
+        SnackBar(
+          content: Text("An error occurred: $error"),
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 4),
         ),
       );
-      Navigator.of(context).pop(GroceryItem(
-        
-          id: DateTime.now().toString(),
-          name: _enteredName,
-          quantity: _enteredQuantity,
-          category: _selectedCategory));
     }
   }
+}
+
 
   @override
   Widget build(BuildContext context) {
@@ -75,7 +110,7 @@ class _NewItemState extends State<NewItem> {
                       decoration: const InputDecoration(
                         label: Text('Quantity'),
                       ),
-                      initialValue: _enteredQuantity.toString(),
+                      initialValue: null,
                       validator: (value) {
                         if (value == null ||
                             value.trim().isEmpty ||
@@ -139,9 +174,12 @@ class _NewItemState extends State<NewItem> {
                     },
                     child: const Text('Reset'),
                   ),
-                  ElevatedButton(
-                    onPressed: _saveItem,
-                    child: const Text('Save'),
+                  Hero(
+                    tag: '1',
+                    child: ElevatedButton(
+                      onPressed: _saveItem,
+                      child: const Text('Save'),
+                    ),
                   ),
                 ],
               ),
