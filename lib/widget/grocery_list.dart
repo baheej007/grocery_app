@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:shopping_list/data/categories.dart';
-import 'package:shopping_list/models/category.dart';
 import 'package:shopping_list/models/grocery_item.dart';
 import 'package:shopping_list/widget/new_item.dart';
 import 'package:http/http.dart' as http;
@@ -16,6 +15,7 @@ class GroceryList extends StatefulWidget {
 class _GroceryListState extends State<GroceryList>
     with SingleTickerProviderStateMixin {
   List<GroceryItem> _groceryItems = [];
+  var _isLoading=true;
   late AnimationController _controller;
 
   @override
@@ -39,12 +39,13 @@ class _GroceryListState extends State<GroceryList>
         'backend1-ef89c-default-rtdb.firebaseio.com', 'shopping_list.json');
 
     final response = await http.get(url);
-    final Map<String,dynamic> listData =
-        json.decode(response.body);
+    final Map<String, dynamic> listData = json.decode(response.body);
     final List<GroceryItem> _loadedItems = [];
     for (final item in listData.entries) {
-      final category = categories.entries.firstWhere(
-          (catItem) => catItem.value.title == item.value['category']).value;
+      final category = categories.entries
+          .firstWhere(
+              (catItem) => catItem.value.title == item.value['category'])
+          .value;
       _loadedItems.add(GroceryItem(
           id: item.key,
           name: item.value['name'],
@@ -52,7 +53,8 @@ class _GroceryListState extends State<GroceryList>
           category: category));
     }
     setState(() {
-      _groceryItems=_loadedItems;
+      _groceryItems = _loadedItems;
+      _isLoading=false;
     });
   }
 
@@ -61,8 +63,12 @@ class _GroceryListState extends State<GroceryList>
       context,
       MaterialPageRoute(builder: (ctx) => const NewItem()),
     );
-
-    _loadItems();
+    if (newItem == null) {
+      return;
+    }
+    setState(() {
+      _groceryItems.add(newItem);
+    });
   }
 
   void _removeItem(GroceryItem item) {
@@ -75,7 +81,9 @@ class _GroceryListState extends State<GroceryList>
   Widget build(BuildContext context) {
     Widget content;
 
-    if (_groceryItems.isEmpty) {
+    if(_isLoading==true){
+      content=Center(child: CircularProgressIndicator(),);
+    }else if (_groceryItems.isEmpty) {
       content = SizedBox(
         width: 400,
         height: 30,

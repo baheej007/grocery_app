@@ -4,6 +4,8 @@ import 'package:shopping_list/models/category.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 
+import 'package:shopping_list/models/grocery_item.dart';
+
 class NewItem extends StatefulWidget {
   const NewItem({super.key});
 
@@ -16,58 +18,64 @@ class _NewItemState extends State<NewItem> {
   var _enteredName = '';
   var _enteredQuantity = 1;
   var _selectedCategory = categories[Categories.fruit]!;
+  var _isSending=false;
 
-  void _saveItem() async { // Make the function async
-  if (_formKey.currentState!.validate()) {
-    _formKey.currentState!.save();
+  void _saveItem() async {
+    if (_formKey.currentState!.validate()) {
+      _formKey.currentState!.save();
+      setState(() {
+        _isSending=true;
+      });
 
-    final url = Uri.https(
-        'backend1-ef89c-default-rtdb.firebaseio.com', 'shopping_list.json');
+      final url = Uri.https(
+          'backend1-ef89c-default-rtdb.firebaseio.com', 'shopping_list.json');
 
-    try {
-      final response = await http.post( // Await the response
-          url,
-          headers: {'Content-Type': 'application/json'},
-          body: json.encode({
-            'name': _enteredName,
-            'quantity': _enteredQuantity,
-            'category': _selectedCategory.title
-          }));
-         if(!mounted){return;}
-         Navigator.of(context).pop();
+      try {
+        final response = await http.post(url,
+            headers: {'Content-Type': 'application/json'},
+            body: json.encode({
+              'name': _enteredName,
+              'quantity': _enteredQuantity,
+              'category': _selectedCategory.title
+            }));
+        final Map<String, dynamic> resData = json.decode(response.body);
+        if (!mounted) {
+          return;
+        }
+        Navigator.of(context).pop(GroceryItem(
+            id: resData['name'],
+            name: _enteredName,
+            quantity: _enteredQuantity,
+            category: _selectedCategory));
 
-      if (response.statusCode >= 400) {
-        
+        if (response.statusCode >= 400) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text("Failed to save item."),
+              backgroundColor: Colors.red,
+              duration: const Duration(seconds: 4),
+            ),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text("Product Saved Successfully!"),
+              backgroundColor: Colors.green,
+              duration: Duration(seconds: 2),
+            ),
+          );
+        }
+      } catch (error) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text("Failed to save item."),
+            content: Text("An error occurred: $error"),
             backgroundColor: Colors.red,
             duration: const Duration(seconds: 4),
           ),
         );
-      } else {
-        
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text("Product Saved Successfully!"),
-            backgroundColor: Colors.green,
-            duration: Duration(seconds: 2),
-          ),
-        );
-        
       }
-    } catch (error) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text("An error occurred: $error"),
-          backgroundColor: Colors.red,
-          duration: const Duration(seconds: 4),
-        ),
-      );
     }
   }
-}
-
 
   @override
   Widget build(BuildContext context) {
@@ -177,8 +185,8 @@ class _NewItemState extends State<NewItem> {
                   Hero(
                     tag: '1',
                     child: ElevatedButton(
-                      onPressed: _saveItem,
-                      child: const Text('Save'),
+                      onPressed: _isSending?null:  _saveItem,
+                      child: _isSending?SizedBox(height: 16,width: 16,child: CircularProgressIndicator(),) :const Text('Save'),
                     ),
                   ),
                 ],
